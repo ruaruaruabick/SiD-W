@@ -71,6 +71,7 @@ class Invertible1x1Conv(torch.nn.Module):
                                     bias=False)
 
         # Sample a random orthonormal matrix to initialize weights
+        #QR分解
         W = torch.qr(torch.FloatTensor(c, c).normal_())[0]
 
         # Ensure determinant is 1.0 not -1.0
@@ -196,11 +197,14 @@ class WaveGlow(torch.nn.Module):
         # Set up layers with the right sizes based on how many dimensions
         # have been output already
         n_remaining_channels = n_group
+        #12个1*1卷积+仿射组合层
         for k in range(n_flows):
             if k % self.n_early_every == 0 and k > 0:
                 n_half = n_half - int(self.n_early_size/2)
                 n_remaining_channels = n_remaining_channels - self.n_early_size
+            #可逆1*1卷积
             self.convinv.append(Invertible1x1Conv(n_remaining_channels))
+            #仿射组合层
             self.WN.append(WN(n_half, n_mel_channels*n_group, **WN_config))
         self.n_remaining_channels = n_remaining_channels  # Useful during inference
 
@@ -209,94 +213,117 @@ class WaveGlow(torch.nn.Module):
         forward_input[0] = mel_spectrogram:  batch x n_mel_channels x frames
         forward_input[1] = audio: batch x time
         """
+        #6*80*63，6*16000
         spect, audio = forward_input
 
         #  Upsample spectrogram to size of audio
+        # 上采样，扩大音频
         spect = self.upsample(spect)
+        #6*80*16896
+        #音频和mel谱对齐
         assert(spect.size(2) >= audio.size(1))
         if spect.size(2) > audio.size(1):
             spect = spect[:, :, :audio.size(1)]
-
-        spect = spect.unfold(2, self.n_group, self.n_group).permute(0, 2, 1, 3)
-        spect = spect.contiguous().view(spect.size(0), spect.size(1), -1).permute(0, 2, 1)
-
-        audio = audio.unfold(1, self.n_group, self.n_group).permute(0, 2, 1)
+        #6*80*16000，对应squeeze操作，16000个采样点8个为一组，保持局部相关性
+        spect = spect.unfold(2, self.n_group, self.n_group).permute(0, 2, 1, 3)#6*2000*80*8
+        #一组mel谱集合起来
+        spect = spect.contiguous().view(spect.size(0), spect.size(1), -1).permute(0, 2, 1)#6*640*2000
+        #squeeze操作，同上
+        audio = audio.unfold(1, self.n_group, self.n_group).permute(0, 2, 1)#6*8*2000
         output_audio = []
         log_s_list = []
         log_det_W_list = []
 
-        for k in range(self.n_flows):
-            if k % self.n_early_every == 0 and k > 0:
+        for k in range(self.n_flows):#n_flows=12
+            if k % self.n_early_every == 0 and k > 0:#n_early_every=4
+                #输出前两个通道
                 output_audio.append(audio[:,:self.n_early_size,:])
                 audio = audio[:,self.n_early_size:,:]
 
             audio, log_det_W = self.convinv[k](audio)
+            #det|J(f^-1)|=log det|W|
             log_det_W_list.append(log_det_W)
 
             n_half = int(audio.size(1)/2)
+            #x_a,x_b
             audio_0 = audio[:,:n_half,:]
             audio_1 = audio[:,n_half:,:]
-
+            #(logs,t)=WN(x_a,mel),output=[batch_size,8,2000]
             output = self.WN[k]((audio_0, spect))
+            #前一半仿射s，后一半仿射t
             log_s = output[:, n_half:, :]
             b = output[:, :n_half, :]
+            #x_b'=s*x_b+t
             audio_1 = torch.exp(log_s)*audio_1 + b
+            #记录logs
             log_s_list.append(log_s)
-
+            #concat(x_a,x_b')
             audio = torch.cat([audio_0, audio_1],1)
 
         output_audio.append(audio)
         return torch.cat(output_audio,1), log_s_list, log_det_W_list
 
     def infer(self, spect, sigma=1.0):
+        #一维反卷积
+        #1*80*375
         spect = self.upsample(spect)
+        #1*80*96768
         # trim conv artifacts. maybe pad spec to kernel multiple
         time_cutoff = self.upsample.kernel_size[0] - self.upsample.stride[0]
         spect = spect[:, :, :-time_cutoff]
-
+        #1*80*96000
+        #unfold滑动窗口，permute换维
         spect = spect.unfold(2, self.n_group, self.n_group).permute(0, 2, 1, 3)
+        #1*12000*80*8
         spect = spect.contiguous().view(spect.size(0), spect.size(1), -1).permute(0, 2, 1)
-
+        #1*640*12000，True
         if spect.type() == 'torch.cuda.HalfTensor':
             audio = torch.cuda.HalfTensor(spect.size(0),
                                           self.n_remaining_channels,
                                           spect.size(2)).normal_()
+            #1*4*12000
         else:
             audio = torch.cuda.FloatTensor(spect.size(0),
                                            self.n_remaining_channels,
                                            spect.size(2)).normal_()
-
+        #封装数据
         audio = torch.autograd.Variable(sigma*audio)
 
         for k in reversed(range(self.n_flows)):
             n_half = int(audio.size(1)/2)
+            # 1*2*12000
             audio_0 = audio[:,:n_half,:]
             audio_1 = audio[:,n_half:,:]
-
+            #1*4*12000
             output = self.WN[k]((audio_0, spect))
-
+            #1*2*12000
             s = output[:, n_half:, :]
             b = output[:, :n_half, :]
+            #1*2*12000,(y_b-t)/s
             audio_1 = (audio_1 - b)/torch.exp(s)
+            #1*4*12000
             audio = torch.cat([audio_0, audio_1],1)
-
+            #1*1卷积，4*4
             audio = self.convinv[k](audio, reverse=True)
-
+            #1*4*12000,每经过四个flows就加入两个channel
             if k % self.n_early_every == 0 and k > 0:
                 if spect.type() == 'torch.cuda.HalfTensor':
                     z = torch.cuda.HalfTensor(spect.size(0), self.n_early_size, spect.size(2)).normal_()
                 else:
                     z = torch.cuda.FloatTensor(spect.size(0), self.n_early_size, spect.size(2)).normal_()
+                
                 audio = torch.cat((sigma*z, audio),1)
-
+                #k=8,1*6*12000，k=4,1*8*12000
+        #1*8*12000
         audio = audio.permute(0,2,1).contiguous().view(audio.size(0), -1).data
+        #1*96000
         return audio
 
     @staticmethod
     def remove_weightnorm(model):
         waveglow = model
         for WN in waveglow.WN:
-            WN.start = torch.nn.utils.remove_weight_norm(WN.start)
+            WN.start = torch.nn.utils.remove_weight_norm(WN.start)#？移除权重归一化
             WN.in_layers = remove(WN.in_layers)
             WN.cond_layer = torch.nn.utils.remove_weight_norm(WN.cond_layer)
             WN.res_skip_layers = remove(WN.res_skip_layers)
@@ -306,6 +333,6 @@ class WaveGlow(torch.nn.Module):
 def remove(conv_list):
     new_conv_list = torch.nn.ModuleList()
     for old_conv in conv_list:
-        old_conv = torch.nn.utils.remove_weight_norm(old_conv)
+        old_conv = torch.nn.utils.remove_weight_norm(old_conv)#？移除权重归一化
         new_conv_list.append(old_conv)
     return new_conv_list

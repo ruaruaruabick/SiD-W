@@ -62,23 +62,25 @@ def save_checkpoint(model, optimizer, learning_rate, iteration, filepath):
 def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
           sigma, iters_per_checkpoint, batch_size, seed, fp16_run,
           checkpoint_path, with_tensorboard):
+    #设定随机数以便复现
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     #=====START: ADDED FOR DISTRIBUTED======
     if num_gpus > 1:
         init_distributed(rank, num_gpus, group_name, **dist_config)
     #=====END:   ADDED FOR DISTRIBUTED======
-
+    #计算Loss
     criterion = WaveGlowLoss(sigma)
+    #构建waveglow模型
     model = WaveGlow(**waveglow_config).cuda()
 
     #=====START: ADDED FOR DISTRIBUTED======
     if num_gpus > 1:
         model = apply_gradient_allreduce(model)
     #=====END:   ADDED FOR DISTRIBUTED======
-
+    #优化器
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
+    #apex加速
     if fp16_run:
         from apex import amp
         model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
@@ -106,7 +108,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
             os.makedirs(output_directory)
             os.chmod(output_directory, 0o775)
         print("output directory", output_directory)
-
+    #用不到
     if with_tensorboard and rank == 0:
         from tensorboardX import SummaryWriter
         logger = SummaryWriter(os.path.join(output_directory, 'logs'))
@@ -117,19 +119,21 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
     for epoch in range(epoch_offset, epochs):
         print("Epoch: {}".format(epoch))
         for i, batch in enumerate(train_loader):
+            #梯度置0，z符合高斯0分布
             model.zero_grad()
-
+            #mel=batch*80*63,batch*16000
             mel, audio = batch
+            #封装数据
             mel = torch.autograd.Variable(mel.cuda())
             audio = torch.autograd.Variable(audio.cuda())
             outputs = model((mel, audio))
-
+            #计算loss
             loss = criterion(outputs)
             if num_gpus > 1:
                 reduced_loss = reduce_tensor(loss.data, num_gpus).item()
             else:
                 reduced_loss = loss.item()
-
+            #apex加速还原
             if fp16_run:
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
@@ -152,6 +156,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
             iteration += 1
 
 if __name__ == "__main__":
+    #解析参数
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str,
                         help='JSON file for configuration')
@@ -182,7 +187,7 @@ if __name__ == "__main__":
 
     if num_gpus == 1 and args.rank != 0:
         raise Exception("Doing single GPU training on rank > 0")
-
+    #自动使用高效算法
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = False
     train(num_gpus, args.rank, args.group_name, **train_config)

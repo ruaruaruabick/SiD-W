@@ -33,34 +33,48 @@ from denoiser import Denoiser
 
 def main(mel_files, waveglow_path, sigma, output_dir, sampling_rate, is_fp16,
          denoiser_strength):
-    mel_files = files_to_list(mel_files)
-    waveglow = torch.load(waveglow_path)['model']
-    waveglow = waveglow.remove_weightnorm(waveglow)
-    waveglow.cuda().eval()
+    mel_files = files_to_list(mel_files)#测试集mel谱list
+    waveglow = torch.load(waveglow_path)['model']#加载模型
+    waveglow = waveglow.remove_weightnorm(waveglow)#？移除权重归一化
+    waveglow.cuda().eval()#cuda()拷贝进gpu #？变成测试模式，dropout和BN在训练时和测不一样
+    #apex加速
     if is_fp16:
         from apex import amp
         waveglow, _ = amp.initialize(waveglow, [], opt_level="O3")
-
+    # denoiser_strength=0
     if denoiser_strength > 0:
         denoiser = Denoiser(waveglow).cuda()
-
     for i, file_path in enumerate(mel_files):
+        #file_name-对应的wav
         file_name = os.path.splitext(os.path.basename(file_path))[0]
+        #加载MFCC特征，80个滤波器
         mel = torch.load(file_path)
+        #mel={key:mel[key].cuda() for key in mel}
+        #封装数据
         mel = torch.autograd.Variable(mel.cuda())
+        #80，375 -> 1*80*375
         mel = torch.unsqueeze(mel, 0)
+        #变成fp16数据以便apex加速
         mel = mel.half() if is_fp16 else mel
+        #反向传播不会自动求导
         with torch.no_grad():
+            #生成1*96000Tensor数据,x为原始音频，z为mel谱
             audio = waveglow.infer(mel, sigma=sigma)
             if denoiser_strength > 0:
                 audio = denoiser(audio, denoiser_strength)
+            #为了转成wav？
             audio = audio * MAX_WAV_VALUE
+        #变成1维数据
         audio = audio.squeeze()
+        #在cpu中转成numpy
         audio = audio.cpu().numpy()
+        #改变类型
         audio = audio.astype('int16')
+        #生成数据存储位置
         audio_path = os.path.join(
             output_dir, "{}_synthesis.wav".format(file_name))
         write(audio_path, sampling_rate, audio)
+        #写入音频
         print(audio_path)
 
 
@@ -73,7 +87,7 @@ if __name__ == "__main__":
                         help='Path to waveglow decoder checkpoint with model')
     parser.add_argument('-o', "--output_dir", required=True)
     parser.add_argument("-s", "--sigma", default=1.0, type=float)
-    parser.add_argument("--sampling_rate", default=22050, type=int)
+    parser.add_argument("--sampling_rate", default=16000, type=int)
     parser.add_argument("--is_fp16", action="store_true")
     parser.add_argument("-d", "--denoiser_strength", default=0.0, type=float,
                         help='Removes model bias. Start with 0.1 and adjust')
