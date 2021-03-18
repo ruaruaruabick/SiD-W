@@ -3,12 +3,12 @@
         "fp16_run": true,
         "output_directory": "checkpoints",
         "epochs": 10000,
-        "learning_rate": 1e-4,
+        "learning_rate": 1e-5,
         "sigma": 1.0,
         "iters_per_checkpoint": 2000,
-        "batch_size": 6,
+        "batch_size": 4,
         "seed": 1234,
-        "checkpoint_path": "checkpoints/waveglow_130000",
+        "checkpoint_path": "checkpoints/waveglow_0",
         "with_tensorboard": false
     },
     "data_config": {
