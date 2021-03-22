@@ -1,0 +1,10 @@
+inferaudio/BAC009S0002W0122.wav.pt
+inferaudio/BAC009S0002W0123.wav.pt
+inferaudio/BAC009S0002W0124.wav.pt
+inferaudio/BAC009S0002W0125.wav.pt
+inferaudio/BAC009S0002W0126.wav.pt
+inferaudio/BAC009S0002W0127.wav.pt
+inferaudio/BAC009S0002W0128.wav.pt
+inferaudio/BAC009S0002W0129.wav.pt
+inferaudio/BAC009S0002W0130.wav.pt
+inferaudio/BAC009S0002W0131.wav.pt
