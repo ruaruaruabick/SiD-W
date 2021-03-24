@@ -1,0 +1,10 @@
+../aishelldata/data_aishell/wav/train/S0002/BAC009S0002W0122.wav
+../aishelldata/data_aishell/wav/train/S0002/BAC009S0002W0123.wav
+../aishelldata/data_aishell/wav/train/S0002/BAC009S0002W0124.wav
+../aishelldata/data_aishell/wav/train/S0002/BAC009S0002W0125.wav
+../aishelldata/data_aishell/wav/train/S0002/BAC009S0002W0126.wav
+../aishelldata/data_aishell/wav/train/S0002/BAC009S0002W0127.wav
+../aishelldata/data_aishell/wav/train/S0002/BAC009S0002W0128.wav
+../aishelldata/data_aishell/wav/train/S0002/BAC009S0002W0129.wav
+../aishelldata/data_aishell/wav/train/S0002/BAC009S0002W0130.wav
+../aishelldata/data_aishell/wav/train/S0002/BAC009S0002W0131.wav

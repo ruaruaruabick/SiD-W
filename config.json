@@ -5,10 +5,10 @@
         "epochs": 10000,
         "learning_rate": 1e-4,
         "sigma": 1.0,
-        "iters_per_checkpoint": 2000,
-        "batch_size": 6,
+        "iters_per_checkpoint": 8000,
+        "batch_size": 4,
         "seed": 1234,
-        "checkpoint_path": "checkpoints/waveglow_130000",
+        "checkpoint_path": "",
         "with_tensorboard": false
     },
     "data_config": {
