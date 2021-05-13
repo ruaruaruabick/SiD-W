@@ -185,7 +185,7 @@ class WaveGlow(torch.nn.Module):
         self.upsample = torch.nn.ConvTranspose1d(n_mel_channels,
                                                  n_mel_channels,
                                                  1024, stride=256)
-        assert(n_group % 2 == 0)
+        #assert(n_group % 2 == 0)
         self.n_flows = n_flows
         self.n_group = n_group
         self.n_early_every = n_early_every
@@ -195,7 +195,7 @@ class WaveGlow(torch.nn.Module):
         self.WN2 = torch.nn.ModuleList()
         self.convinv = torch.nn.ModuleList()
 
-        n_half = int(n_group/2)
+        n_half = int(n_group/3)
 
         # Set up layers with the right sizes based on how many dimensions
         # have been output already
@@ -203,7 +203,7 @@ class WaveGlow(torch.nn.Module):
         #12个1*1卷积+仿射组合层
         for k in range(n_flows):
             if k % self.n_early_every == 0 and k > 0:
-                n_half = n_half - int(self.n_early_size/2)
+                n_half = n_half - int(self.n_early_size/3)
                 n_remaining_channels = n_remaining_channels - self.n_early_size
             #可逆1*1卷积
             self.convinv.append(Invertible1x1Conv(n_remaining_channels))
@@ -251,28 +251,38 @@ class WaveGlow(torch.nn.Module):
             #det|J(f^-1)|=log det|W|
             log_det_W_list.append(log_det_W)
 
-            n_half = int(audio.size(1)/2)
+            n_half = int(audio.size(1)/3)
             #x_a,x_b
             audio_0 = audio[:,:n_half,:]
-            audio_1 = audio[:,n_half:,:]
-            #(logs,t)=WN(x_a,mel),output=[batch_size,8,2000]
-            #output1 = audio_0
+            audio_1 = audio[:,n_half:n_half*2,:]
+            audio_2 = audio[:,n_half*2:,:]
             output1 = self.WN1[k]((audio_0, spect))
-            #前一半仿射s，后一半仿射t
             log_s1 = output1[:, n_half:, :]
             b1 = output1[:, :n_half, :]
-            y_0 = torch.exp(log_s1)*audio_0 + b1
-            #x_b'=s*x_b+t
-            output2 = self.WN2[k]((audio_0, spect))
+            y_1 = torch.exp(log_s1)*audio_1 + b1
+
+            output2 = self.WN2[k]((y_1,spect))
             log_s2 = output2[:, n_half:, :]
             b2 = output2[:, :n_half, :]
-            y_1 = torch.exp(log_s2)*audio_1 + b2
+            y_2 = torch.exp(log_s2) * audio_2 + b2
+            #(logs,t)=WN(x_a,mel),output=[batch_size,8,2000]
+            #output1 = audio_0
+
+            #前一半仿射s，后一半仿射t
+
+
+            #y_0 = torch.exp(log_s1)*audio_0 + b1
+            #x_b'=s*x_b+t
+            #output2 = self.WN2[k]((audio_0, spect))
+            #log_s2 = output2[:, n_half:, :]
+            #b2 = output2[:, :n_half, :]
+            #y_1 = torch.exp(log_s2)*audio_1 + b2
             #记录logs
             #log_s_list.append(log_s)
             log_s1_list.append(log_s1)
             log_s2_list.append(log_s2)
-            #concat(x_a,x_b')
-            audio = torch.cat([y_0, y_1],1)
+            #concat(x_a,x_b')W
+            audio = torch.cat([audio_0, y_1,y_2],1)
 
         output_audio.append(audio)
         return torch.cat(output_audio,1),log_s1_list,log_s2_list,log_det_W_list
@@ -304,29 +314,28 @@ class WaveGlow(torch.nn.Module):
         audio = torch.autograd.Variable(sigma*audio)
 
         for k in reversed(range(self.n_flows)):
-            n_half = int(audio.size(1)/2)
+            n_half = int(audio.size(1)/3)
             # 1*2*12000
-            audio_0 = audio[:,:n_half,:]
-            audio_1 = audio[:,n_half:,:]
+            audio_0 = audio[:, :n_half, :]
+            audio_1 = audio[:, n_half:n_half * 2, :]
+            audio_2 = audio[:, n_half * 2:, :]
             #1*4*12000
             output1 = self.WN1[k]((audio_0, spect))
             #output = self.WN2[k]((audio_0, spect))
             log_s1 = output1[:, n_half:, :]
             b1 = output1[:, :n_half, :]
-            y_0 = torch.exp(log_s1) * audio_0 + b1
-            x_0 = (y_0 - b1)/torch.exp(log_s1)
-            output2 = self.WN2[k]((audio_0, spect))
+            x_1 = (audio_1 - b1)/torch.exp(log_s1)
+            output2 = self.WN2[k]((audio_1, spect))
             log_s2 = output2[:, n_half:, :]
             b2 = output2[:, :n_half, :]
-            y_1 = torch.exp(log_s2) * audio_1 + b2
-            x_1 = (y_1 - b2)/torch.exp(log_s2)
+            x_2 = (audio_2 - b2)/torch.exp(log_s2)
             #1*2*12000
             #s = output[:, n_half:, :]
             #b = output[:, :n_half, :]
             #1*2*12000,(y_b-t)/s
             #audio_1 = (audio_1 - b)/torch.exp(s)
             #1*4*12000
-            audio = torch.cat([x_0, x_1],1)
+            audio = torch.cat([audio_0, x_1,x_2],1)
             #1*1卷积，4*4
             audio = self.convinv[k](audio, reverse=True)
             #1*4*12000,每经过四个flows就加入两个channel

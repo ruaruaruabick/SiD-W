@@ -5,16 +5,16 @@
         "epochs": 10000,
         "learning_rate": 1e-4,
         "sigma": 1.0,
-        "iters_per_checkpoint": 8000,
-        "batch_size": 4,
+        "iters_per_checkpoint": 4000,
+        "batch_size": 3,
         "seed": 1234,
-        "checkpoint_path": "checkpoints/waveglow_16                                                                                                                                                                  000",
-        "with_tensorboard": false
+        "checkpoint_path": "checkpoints/waveglow_176000",
+        "with_tensorboard": true
     },
     "data_config": {
         "training_files": "train_files.txt",
         "segment_length": 16000,
-        "sampling_rate": 16000,
+        "sampling_rate": 48000,
         "filter_length": 1024,
         "hop_length": 256,
         "win_length": 1024,
@@ -29,9 +29,9 @@
     "waveglow_config": {
         "n_mel_channels": 80,
         "n_flows": 12,
-        "n_group": 8,
+        "n_group": 9,
         "n_early_every": 4,
-        "n_early_size": 2,
+        "n_early_size": 3,
         "WN_config": {
             "n_layers": 8,
             "n_channels": 256,

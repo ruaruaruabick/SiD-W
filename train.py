@@ -88,8 +88,15 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
     # Load checkpoint if one exists
     iteration = 0
     if checkpoint_path != "":
-        model, optimizer, iteration = load_checkpoint(checkpoint_path, model,
-                                                      optimizer)
+        checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
+        iteration = checkpoint_dict['iteration']
+        #optimizer.load_state_dict(checkpoint_dict['optimizer'])
+        model_for_loading = checkpoint_dict['model']
+        model.load_state_dict(model_for_loading.state_dict())
+        print("Loaded checkpoint '{}' (iteration {})".format(
+            checkpoint_path, iteration))
+        #model, optimizer, iteration = load_checkpoint(checkpoint_path, model,
+        #                                              optimizer)
         iteration += 1  # next iteration is iteration + 1
 
     trainset = Mel2Samp(**data_config)

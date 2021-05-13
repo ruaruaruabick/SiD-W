@@ -6,7 +6,7 @@ import numpy as np
 
 # 打开wav文档
 #f = wave.open(r"/home/mike/waveglow_temp/testaudio/BAC009S0002W0123.wav_synthesis.wav", "rb")
-f = wave.open(r"inferaudio/BAC009S0002W0122.wav_synthesis.wav", "rb")
+f = wave.open(r"/home/mike/waveglowdata/train/female-north/SSB0393/SSB03930405.wav", "rb")
 # 读取格式信息
 # (nchannels, sampwidth,framerate, nframes, comptype, compname)
 # 读取格式信息
