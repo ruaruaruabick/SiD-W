@@ -38,9 +38,11 @@ def main(mel_files, waveglow_path, sigma, output_dir, sampling_rate, is_fp16,
     waveglow = waveglow.remove_weightnorm(waveglow)#？移除权重归一化
     waveglow.cuda().eval()#cuda()拷贝进gpu #？变成测试模式，dropout和BN在训练时和测不一样
     #apex加速
+    
     if is_fp16:
         from apex import amp
         waveglow, _ = amp.initialize(waveglow, [], opt_level="O3")
+    
     # denoiser_strength=0
     if denoiser_strength > 0:
         denoiser = Denoiser(waveglow).cuda()
