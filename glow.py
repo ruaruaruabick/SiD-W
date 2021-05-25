@@ -259,7 +259,8 @@ class WaveGlow(torch.nn.Module):
             audio_0 = audio[:,:n_half,:]
             audio_1 = audio[:,n_half:,:]
             #(logs,t)=WN(x_a,mel),output=[batch_size,8,2000]
-            #output = self.WN[k]((audio_0, spect))
+            #output = self.WN[k]((audio_0, spect))      
+
             output1 = self.WN1[k]((torch.from_numpy(np.ones(audio_0.size())/MAX_WAV_VALUE).float().cuda(), spect))
             log_s1 = output1[:, n_half:, :]
             t_1 = output1[:, :n_half, :]
