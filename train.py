@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*
 # *****************************************************************************
 #  Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
@@ -29,7 +28,7 @@ import argparse
 import json
 import os
 import torch
-
+import math
 #=====START: ADDED FOR DISTRIBUTED======
 from distributed import init_distributed, apply_gradient_allreduce, reduce_tensor
 from torch.utils.data.distributed import DistributedSampler
@@ -64,6 +63,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
           sigma, iters_per_checkpoint, batch_size, seed, fp16_run,
           checkpoint_path, with_tensorboard):
     #设定随机数以便复现
+    sigma = math.sqrt(sigma)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     #=====START: ADDED FOR DISTRIBUTED======
@@ -89,15 +89,15 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
     # Load checkpoint if one exists
     iteration = 0
     if checkpoint_path != "":
-        checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
-        iteration = checkpoint_dict['iteration']
-        optimizer.load_state_dict(checkpoint_dict['optimizer'])
-        model_for_loading = checkpoint_dict['model']
-        model.load_state_dict(model_for_loading.state_dict())
-        print("Loaded checkpoint '{}' (iteration {})".format(
-            checkpoint_path, iteration))
-        #model, optimizer, iteration = load_checkpoint(checkpoint_path, model,
-        #                                               optimizer)
+        if checkpoint_path == "checkpoints/waveglow_256channels_universal_v5.pt":
+            checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
+            model_for_loading = checkpoint_dict['model']
+            model.load_state_dict(model_for_loading.state_dict())
+            print("Loaded checkpoint '{}' (iteration {})" .format(
+                checkpoint_path, iteration))
+        else:
+            model, optimizer, iteration = load_checkpoint(checkpoint_path, model,
+                                                      optimizer)
         iteration += 1  # next iteration is iteration + 1
 
     trainset = Mel2Samp(**data_config)
@@ -132,8 +132,8 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
             #mel=batch*80*63,batch*16000
             mel, audio = batch
             #封装数据
-            mel = torch.autograd.Variable(mel.cuda())
-            audio = torch.autograd.Variable(audio.cuda())
+            mel = torch.autograd.Variable(mel).cuda()
+            audio = torch.autograd.Variable(audio).cuda()
             outputs = model((mel, audio))
             #计算loss
             loss = criterion(outputs)
@@ -149,8 +149,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
                 loss.backward()
 
             optimizer.step()
-            if not reduced_loss < 0:
-                print("no")
+
             print("{}:\t{:.9f}".format(iteration, reduced_loss))
             if with_tensorboard and rank == 0:
                 logger.add_scalar('training_loss', reduced_loss, i + len(train_loader) * epoch)
