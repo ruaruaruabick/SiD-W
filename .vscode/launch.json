@@ -4,13 +4,17 @@
     // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+    
         {
-            "name": "Python: 当前文件",
+            "name": "Python: train",
             "type": "python",
             "request": "launch",
-            "program": "train.py",
+            "program": "distributed.py",
             "console": "integratedTerminal",
-            "args": ["-c","config.json"]
+            "args": [
+                "-c",
+                "config.json"
+            ]
         },
         {
             "name": "Python: inference",
@@ -19,7 +23,18 @@
             "program": "inference.py",
             "console": "integratedTerminal",
             "args": [
-                "-f", "mel_files.txt", "-w", "checkpoints/waveglow_78000", "-o", "./inferaudio", "-s", "0.6", "--sampling_rate", "48000"
+                "-f",
+                "mel_files.txt",
+                "-w",
+                "checkpoints/waveglow_24000",
+                "-o",
+                "./inferaudio",
+                "-s",
+                "0.6",
+                "--sampling_rate",
+                "22050",
+                "-d",
+                "0"
             ]
         }
     ]

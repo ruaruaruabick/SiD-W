@@ -50,8 +50,8 @@ with fused residual and skip connections.
 2. Make a list of the file names to use for training/testing
 
    ```command
-   ls ~/BBdata/Wave/*.wav | tail -n+10 > train_files.txt
-   ls ~/BBdata/Wave/*.wav | head -n10 > test_files.txt
+   ls ~/BBdata/Wave_22050/*.wav | tail -n+10 > train_files.txt
+   ls ~/BBdata/Wave_22050/*.wav | head -n10 > test_files.txt
    ```
 
 3. Train your WaveGlow networks
@@ -73,7 +73,7 @@ with fused residual and skip connections.
 
    ```command
    ls inferaudio/*.pt > mel_files.txt
-   python3 inference.py -f mel_files.txt -w checkpoints/waveglow_10000 -o ./inferaudio--is_fp16 -s 0.6
+   python3 inference.py -f mel_files.txt -w checkpoints/waveglow_256000 -o ./inferaudio  -s 0.6
    ```
 
 [//]: # (TODO)

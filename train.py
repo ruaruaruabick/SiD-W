@@ -57,7 +57,7 @@ def save_checkpoint(model, optimizer, learning_rate, iteration, filepath):
     model_for_saving.load_state_dict(model.state_dict())
     torch.save({'model': model_for_saving,
                 'iteration': iteration,
-                'optimizer': optimizer.state_dict(),
+                #'optimizer': optimizer.state_dict(),
                 'learning_rate': learning_rate}, filepath)
 
 def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
@@ -91,7 +91,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
     if checkpoint_path != "":
         checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
         iteration = checkpoint_dict['iteration']
-        optimizer.load_state_dict(checkpoint_dict['optimizer'])
+        #optimizer.load_state_dict(checkpoint_dict['optimizer'])
         model_for_loading = checkpoint_dict['model']
         model.load_state_dict(model_for_loading.state_dict())
         print("Loaded checkpoint '{}' (iteration {})".format(
@@ -161,6 +161,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
                         output_directory, iteration)
                     save_checkpoint(model, optimizer, learning_rate, iteration,
                                     checkpoint_path)
+                    
 
             iteration += 1
 

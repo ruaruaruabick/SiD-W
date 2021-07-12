@@ -1,2 +1,5 @@
 /checkpoints/
 /inferaudio/
+__pycache__
+GPU_1.log
+nohup.out

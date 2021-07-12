@@ -2,22 +2,19 @@
     "train_config": {
         "fp16_run": false,
         "output_directory": "checkpoints",
-        "epochs": 10000,
-        "learning_rate": 1e-7,
+        "epochs": 100,
+        "learning_rate": 5e-5,
         "sigma": 1.0,
         "iters_per_checkpoint":8000,
-        "batch_size": 1,
+        "batch_size": 2,
         "seed": 1234,
-<<<<<<< HEAD
-        "checkpoint_path": "checkpoints/waveglow_232000",
-=======
->>>>>>> c4e3047a85802d1b1d6e1bc53ba6a4a44f86ce00
+        "checkpoint_path": "checkpoints/waveglow_98000",
         "with_tensorboard": true
     },
     "data_config": {
         "training_files": "train_files.txt",
         "segment_length": 16000,
-        "sampling_rate": 48000,
+        "sampling_rate": 22050,
         "filter_length": 1024,
         "hop_length": 256,
         "win_length": 1024,
