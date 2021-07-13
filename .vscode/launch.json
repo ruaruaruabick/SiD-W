@@ -20,7 +20,7 @@
             "program": "inference.py",
             "console": "integratedTerminal",
             "args": [
-                "-f", "mel_files.txt", "-w", "checkpoints/waveglow_78000", "-o", "./inferaudio", "-s", "0.6", "--sampling_rate", "48000"
+                "-f", "mel_files.txt", "-w", "checkpoints/waveglow_56000", "-o", "./inferaudio", "-s", "0.6", "--sampling_rate", "22050","--is_fp16"
             ]
         }
     ]

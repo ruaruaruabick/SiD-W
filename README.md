@@ -67,13 +67,13 @@ with fused residual and skip connections.
 
 4. Make test set mel-spectrograms
 
-   `python mel2samp.py -f test_files.txt -o ./testaudio -c config.json`
+   `python mel2samp.py -f test_files.txt -o ./inferaudio -c config.json`
 
 5. Do inference with your network
 
    ```command
-   ls testaudio/*.pt > mel_files.txt
-   python3 inference.py -f mel_files.txt -w checkpoints/waveglow_168000 -o ./testaudio --is_fp16 -s 0.6
+   ls inferaudio/*.pt > mel_files.txt
+   python3 inference.py -f mel_files.txt -w checkpoints/waveglow_168000 -o ./testaudio --is_fp16 -s 0.6f
    ```
 
 [//]: # (TODO)

@@ -91,7 +91,12 @@ class Mel2Samp(torch.utils.data.Dataset):
         melspec = self.stft.mel_spectrogram(audio_norm)
         melspec = torch.squeeze(melspec, 0)
         return melspec
-
+    def get_plp(self,audio, sampling_rate):
+        audio = audio / MAX_WAV_VALUE
+        return get_plp().get_plp(sampling_rate,audio)
+    def get_mfcc(self,audio, sampling_rate):
+        audio = audio / MAX_WAV_VALUE
+        return get_mfcc().get_mfcc(sampling_rate,audio)
     def __getitem__(self, index):
         # Read audio
         filename = self.audio_files[index]
@@ -114,7 +119,7 @@ class Mel2Samp(torch.utils.data.Dataset):
         audio = audio / MAX_WAV_VALUE
         mfc = get_mfcc().get_mfcc(sampling_rate,audio)
         plp = get_plp().get_plp(sampling_rate,audio)
-        return (plp, audio)
+        return (mfc, audio)
 
     def __len__(self):
         return len(self.audio_files)
@@ -147,7 +152,9 @@ if __name__ == "__main__":
 
     for filepath in filepaths:
         audio, sr = load_wav_to_torch(filepath)
-        melspectrogram = mel2samp.get_mel(audio)
+        #melspectrogram = mel2samp.get_mel(audio)
+        #melspectrogram = mel2samp.get_plp(audio,sr)
+        melspectrogram = mel2samp.get_mfcc(audio,sr)
         filename = os.path.basename(filepath)
         new_filepath = args.output_dir + '/' + filename + '.pt'
         print(new_filepath)
