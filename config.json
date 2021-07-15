@@ -8,7 +8,7 @@
         "iters_per_checkpoint":32000,
         "batch_size": 2,
         "seed": 1234,
-        "checkpoint_path": "checkpoints/waveglow_248000",
+        "checkpoint_path": "checkpoints/waveglow_320000",
         "with_tensorboard": true
     },
     "data_config": {
