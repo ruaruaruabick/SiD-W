@@ -134,6 +134,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
             #封装数据
             mel = torch.autograd.Variable(mel).cuda()
             audio = torch.autograd.Variable(audio).cuda()
+            mel  =  mel.type_as(audio)
             outputs = model((mel, audio))
             #计算loss
             loss = criterion(outputs)

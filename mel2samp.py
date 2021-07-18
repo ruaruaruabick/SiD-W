@@ -37,7 +37,7 @@ import torch.nn.functional as F
 # We're using the audio processing from TacoTron2 to make sure it matches
 sys.path.insert(0, 'tacotron2')
 from tacotron2.layers import TacotronSTFT
-from mfcc import get_mfcc,get_plp,get_logfbank
+from mfcc import get_mfcc,get_plp,get_logfbank,get_lpcc
 MAX_WAV_VALUE = 32768.0
 def files_to_list(filename):
     """
@@ -97,6 +97,9 @@ class Mel2Samp(torch.utils.data.Dataset):
     def get_mfcc(self,audio, sampling_rate):
         audio = audio / MAX_WAV_VALUE
         return get_mfcc().get_mfcc(sampling_rate,audio)
+    def get_lpcc(self,audio, sampling_rate):
+        audio = audio / MAX_WAV_VALUE
+        return get_lpcc().get_lpcc(sampling_rate,audio)
     def get_logfbank(self,audio, sampling_rate):
         audio = audio / MAX_WAV_VALUE
         return get_logfbank().get_logfbank(sampling_rate,audio)
@@ -123,6 +126,7 @@ class Mel2Samp(torch.utils.data.Dataset):
         mfc = get_mfcc().get_mfcc(sampling_rate,audio)
         plp = get_plp().get_plp(sampling_rate,audio)
         logfbank = get_logfbank().get_logfbank(sampling_rate,audio)
+        lpcc = get_lpcc().get_lpcc(sampling_rate,audio)
         return (logfbank, audio)
 
     def __len__(self):
@@ -160,6 +164,7 @@ if __name__ == "__main__":
         #melspectrogram = mel2samp.get_plp(audio,sr)
         #melspectrogram = mel2samp.get_mfcc(audio,sr)
         melspectrogram = mel2samp.get_logfbank(audio,sr)
+        #melspectrogram = mel2samp.get_lpcc(audio,sr)
         filename = os.path.basename(filepath)
         new_filepath = args.output_dir + '/' + filename + '.pt'
         print(new_filepath)
