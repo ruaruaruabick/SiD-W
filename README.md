@@ -73,7 +73,7 @@ with fused residual and skip connections.
 
    ```command
    ls inferaudio/*.pt > mel_files.txt
-   python3 inference.py -f mel_files.txt -w checkpoints/waveglow_168000 -o ./testaudio --is_fp16 -s 0.6f
+   python3 inference.py -f mel_files.txt -w checkpoints/waveglow_64000 -o ./inferaudio --is_fp16 -s 0.6f
    ```
 
 [//]: # (TODO)

@@ -97,6 +97,9 @@ class Mel2Samp(torch.utils.data.Dataset):
     def get_mfcc(self,audio, sampling_rate):
         audio = audio / MAX_WAV_VALUE
         return get_mfcc().get_mfcc(sampling_rate,audio)
+    def get_logfbank(self,audio, sampling_rate):
+        audio = audio / MAX_WAV_VALUE
+        return get_logfbank().get_logfbank(sampling_rate,audio)
     def __getitem__(self, index):
         # Read audio
         filename = self.audio_files[index]
