@@ -163,7 +163,14 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
                                     checkpoint_path)
 
             iteration += 1
-
+            # num_p = 0
+            # for param in model.parameters():
+            #     num_p += param.numel()
+            # print(num_p)
+    checkpoint_path = "{}/waveglow_{}".format(
+                            output_directory, iteration)
+    save_checkpoint(model, optimizer, learning_rate, iteration,
+                    checkpoint_path)
 if __name__ == "__main__":
     #解析参数
     parser = argparse.ArgumentParser()

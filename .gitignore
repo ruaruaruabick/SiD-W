@@ -1,3 +1,7 @@
 /checkpoints/
 /inferaudio/
 waveglow_256channels_universal_v5.pt
+config.json
+.vscode
+GPU_1.log
+nohup.out

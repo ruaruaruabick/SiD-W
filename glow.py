@@ -261,12 +261,14 @@ class WaveGlow(torch.nn.Module):
             #(logs,t)=WN(x_a,mel),output=[batch_size,8,2000]
             #output = self.WN[k]((audio_0, spect))      
             if spect.type() == 'torch.cuda.HalfTensor':
-                input_0 = torch.from_numpy(np.ones(audio_0.size())/MAX_WAV_VALUE).float().cuda().half()
-                input_0 = torch.cuda.HalfTensor(input_0)
-                input_0 = torch.autograd.Variable(input_0)
+                # input_0 = torch.from_numpy(np.ones(audio_0.size())/MAX_WAV_VALUE).float().cuda().half()
+                # input_0 = torch.cuda.HalfTensor(input_0)
+                # input_0 = torch.autograd.Variable(input_0)
+                input_0 = torch.cuda.HalfTensor(audio_0.size()).normal_()/MAX_WAV_VALUE
             else:
-                input_0 = torch.from_numpy(np.ones(audio_0.size()) / MAX_WAV_VALUE).float().cuda()
-                input_0 = torch.autograd.Variable(input_0)
+                # input_0 = torch.from_numpy(np.ones(audio_0.size()) / MAX_WAV_VALUE).float().cuda()
+                # input_0 = torch.autograd.Variable(input_0)
+                input_0 = torch.cuda.FloatTensor(audio_0.size()).normal_()/MAX_WAV_VALUE
             output1 = self.WN1[k]((input_0, spect))
             log_s1 = output1[:, n_half:, :]
             t_1 = output1[:, :n_half, :]
@@ -310,23 +312,31 @@ class WaveGlow(torch.nn.Module):
         #1*12000*80*8
         spect = spect.contiguous().view(spect.size(0), spect.size(1), -1).permute(0, 2, 1)
         #1*640*12000，True
-        y_0 = torch.from_numpy(np.ones([spect.size(0),
-                                          int(self.n_remaining_channels/2),
-                                          spect.size(2)])).cuda()/MAX_WAV_VALUE
+        # y_0 = torch.from_numpy(np.ones([spect.size(0),
+        #                                   int(self.n_remaining_channels/2),
+        #                                   spect.size(2)])).cuda()/MAX_WAV_VALUE
         if spect.type() == 'torch.cuda.HalfTensor':
             audio = torch.cuda.HalfTensor(spect.size(0),
                                           self.n_remaining_channels,
                                           spect.size(2)).normal_()
-            y_0 =y_0.half()
-            y_0 = torch.cuda.HalfTensor(y_0)
-            y_0 = torch.autograd.Variable(sigma * y_0)
+            # y_0 =y_0.half()
+            # y_0 = torch.cuda.HalfTensor(y_0)
+            # y_0 = torch.autograd.Variable(sigma * y_0)
+            y_0 = torch.cuda.HalfTensor(spect.size(0),
+                                          int(self.n_remaining_channels/2),
+                                          spect.size(2)).normal_()/MAX_WAV_VALUE
+            y_0 = sigma * y_0
             #1*4*12000
         else:
             audio = torch.cuda.FloatTensor(spect.size(0),
                                            self.n_remaining_channels,
                                            spect.size(2)).normal_()
-            y_0 =y_0.float()
-            y_0 = torch.autograd.Variable(sigma * y_0)
+            # y_0 =y_0.float()
+            # y_0 = torch.autograd.Variable(sigma * y_0)
+            y_0 = torch.cuda.FloatTensor(spect.size(0),
+                                          int(self.n_remaining_channels/2),
+                                          spect.size(2)).normal_()/MAX_WAV_VALUE
+            y_0 = sigma * y_0
         #封装数据
         audio = torch.autograd.Variable(sigma*audio)
 
@@ -359,18 +369,26 @@ class WaveGlow(torch.nn.Module):
             audio = self.convinv[k](audio, reverse=True)
             #1*4*12000,每经过四个flows就加入两个channel
             if k % self.n_early_every == 0 and k > 0:
-                y_0 = torch.from_numpy(np.ones([spect.size(0),
-                                                int((audio.size()[1]+self.n_early_size) / 2),
-                                                spect.size(2)])).cuda() / MAX_WAV_VALUE
+                # y_0 = torch.from_numpy(np.ones([spect.size(0),
+                #                                 int((audio.size()[1]+self.n_early_size) / 2),
+                #                                 spect.size(2)])).cuda() / MAX_WAV_VALUE
                 if spect.type() == 'torch.cuda.HalfTensor':
                     z = torch.cuda.HalfTensor(spect.size(0), self.n_early_size, spect.size(2)).normal_()
-                    y_0 = y_0.half()
-                    y_0 = torch.cuda.HalfTensor(y_0)
-                    y_0 = torch.autograd.Variable(sigma*y_0)
+                    # y_0 = y_0.half()
+                    # y_0 = torch.cuda.HalfTensor(y_0)
+                    # y_0 = torch.autograd.Variable(sigma*y_0)
+                    y_0 = torch.cuda.HalfTensor(spect.size(0),
+                                                int((audio.size()[1]+self.n_early_size) / 2),
+                                                spect.size(2)).normal_()/MAX_WAV_VALUE
+                    y_0 = sigma * y_0
                 else:
                     z = torch.cuda.FloatTensor(spect.size(0), self.n_early_size, spect.size(2)).normal_()
-                    y_0 = y_0.float()
-                    y_0 = torch.autograd.Variable(sigma*y_0)
+                    # y_0 = y_0.float()
+                    # y_0 = torch.autograd.Variable(sigma*y_0)
+                    y_0 = torch.cuda.FloatTensor(spect.size(0),
+                                                int((audio.size()[1]+self.n_early_size) / 2),
+                                                spect.size(2)).normal_()/MAX_WAV_VALUE
+                    y_0 = sigma * y_0
                 audio = torch.cat((sigma*z, audio),1)
                 #k=8,1*6*12000，k=4,1*8*12000
         #1*8*12000
