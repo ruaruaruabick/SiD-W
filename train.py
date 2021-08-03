@@ -29,7 +29,7 @@ import argparse
 import json
 import os
 import torch
-
+import numpy as np
 #=====START: ADDED FOR DISTRIBUTED======
 from distributed import init_distributed, apply_gradient_allreduce, reduce_tensor
 from torch.utils.data.distributed import DistributedSampler
@@ -59,6 +59,32 @@ def save_checkpoint(model, optimizer, learning_rate, iteration, filepath):
                 'iteration': iteration,
                 'optimizer': optimizer.state_dict(),
                 'learning_rate': learning_rate}, filepath)
+def validate(model,criterion,valset,epoch,batch_size,n_gpus,rank,output_directory,logger):
+    model.eval()
+    with torch.no_grad():
+        test_sampler = DistributedSampler(valset) if n_gpus > 1 else None
+        test_loader = DataLoader(valset, num_workers=1, shuffle=False,
+                              sampler=test_sampler,
+                              batch_size=batch_size,
+                              pin_memory=False,
+                              drop_last=True)
+        val_loss =[]
+        for i,batch in enumerate(test_loader):
+            model.zero_grad()
+            #mel=batch*80*63,batch*16000
+            mel, audio = batch
+            #封装数据
+            mel = torch.autograd.Variable(mel.cuda())
+            audio = torch.autograd.Variable(audio.cuda())
+            outputs = model((mel, audio))
+            #计算loss
+            loss = criterion(outputs)
+            if num_gpus > 1:
+                reduced_loss = reduce_tensor(loss.data, num_gpus).item()
+            else:
+                reduced_loss = loss.item()
+            val_loss.append(reduced_loss)
+        logger.add_scalar('test_loss', np.mean(val_loss), epoch)
 
 def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
           sigma, iters_per_checkpoint, batch_size, seed, fp16_run,
@@ -74,7 +100,10 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
     criterion = WaveGlowLoss(sigma)
     #构建waveglow模型
     model = WaveGlow(**waveglow_config).cuda()
-
+    pytorch_total_params = sum(p.numel() for p in model.parameters())
+    pytorch_total_params_train = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print("param", pytorch_total_params)
+    print("param trainable", pytorch_total_params_train)
     #=====START: ADDED FOR DISTRIBUTED======
     if num_gpus > 1:
         model = apply_gradient_allreduce(model)
@@ -101,6 +130,9 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
         iteration += 1  # next iteration is iteration + 1
 
     trainset = Mel2Samp(**data_config)
+    testconfig = data_config
+    testconfig["training_files"] = "test_files.txt"
+    testset = Mel2Samp(**testconfig)
     # =====START: ADDED FOR DISTRIBUTED======
     train_sampler = DistributedSampler(trainset) if num_gpus > 1 else None
     # =====END:   ADDED FOR DISTRIBUTED======
@@ -167,6 +199,10 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
             # for param in model.parameters():
             #     num_p += param.numel()
             # print(num_p)
+        # validate
+        if rank == 0:
+            validate(model,criterion,testset,epoch,batch_size,num_gpus,rank,output_directory,logger)
+            model.train()
     checkpoint_path = "{}/waveglow_{}".format(
                             output_directory, iteration)
     save_checkpoint(model, optimizer, learning_rate, iteration,
