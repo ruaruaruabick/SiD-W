@@ -137,26 +137,26 @@ class WN(torch.nn.Module):
         self.cond_layer = torch.nn.utils.weight_norm(cond_layer, name='weight')
 
         for i in range(n_layers):
-            dilation = 1
-            padding = int((kernel_size*dilation - dilation)/2)
-            depthwise = torch.nn.Conv1d(n_channels,n_channels,3,dilation=dilation,padding=padding,groups=n_channels).cuda()
-            pointwise = torch.nn.Conv1d(n_channels,2*n_channels,1).cuda()
-            bn = torch.nn.BatchNorm1d(n_channels)
-            self.in_layers.append(torch.nn.Sequential(bn,depthwise,pointwise))
-            # dilation = 2 ** i
+            # dilation = 1
             # padding = int((kernel_size*dilation - dilation)/2)
-            # in_layer = torch.nn.Conv1d(n_channels, 2*n_channels, kernel_size,
-            #                            dilation=dilation, padding=padding)
-            # in_layer = torch.nn.utils.weight_norm(in_layer, name='weight')
-            # self.in_layers.append(in_layer)
+            # depthwise = torch.nn.Conv1d(n_channels,n_channels,3,dilation=dilation,padding=padding,groups=n_channels).cuda()
+            # pointwise = torch.nn.Conv1d(n_channels,2*n_channels,1).cuda()
+            # bn = torch.nn.BatchNorm1d(n_channels)
+            # self.in_layers.append(torch.nn.Sequential(bn,depthwise,pointwise))
+            dilation = 2 ** i
+            padding = int((kernel_size*dilation - dilation)/2)
+            in_layer = torch.nn.Conv1d(n_channels, 2*n_channels, kernel_size,
+                                       dilation=dilation, padding=padding)
+            in_layer = torch.nn.utils.weight_norm(in_layer, name='weight')
+            self.in_layers.append(in_layer)
 
 
             # last one is not necessary
-            # if i < n_layers - 1:
-            #     res_skip_channels = 2*n_channels
-            # else:
-            #     res_skip_channels = n_channels
-            res_skip_layer = torch.nn.Conv1d(n_channels, n_channels, 1)
+            if i < n_layers - 1:
+                res_skip_channels = 2*n_channels
+            else:
+                res_skip_channels = n_channels
+            res_skip_layer = torch.nn.Conv1d(n_channels, res_skip_channels, 1)
             res_skip_layer = torch.nn.utils.weight_norm(res_skip_layer, name='weight')
             self.res_skip_layers.append(res_skip_layer)
 
@@ -175,7 +175,11 @@ class WN(torch.nn.Module):
                 spect[:,spect_offset:spect_offset+2*self.n_channels,:],
                 n_channels_tensor)
             res_skip_acts = self.res_skip_layers[i](acts)
-            output = output + res_skip_acts
+            if i < self.n_layers - 1:
+                audio = audio + res_skip_acts[:,:self.n_channels,:]
+                output = output + res_skip_acts[:,self.n_channels:,:]
+            else:
+                output = output + res_skip_acts
 
         return self.end(output)
 
@@ -261,14 +265,14 @@ class WaveGlow(torch.nn.Module):
             #(logs,t)=WN(x_a,mel),output=[batch_size,8,2000]
             #output = self.WN[k]((audio_0, spect))      
             if spect.type() == 'torch.cuda.HalfTensor':
-                # input_0 = torch.from_numpy(np.ones(audio_0.size())/MAX_WAV_VALUE).float().cuda().half()
-                # input_0 = torch.cuda.HalfTensor(input_0)
-                # input_0 = torch.autograd.Variable(input_0)
-                input_0 = torch.cuda.HalfTensor(audio_0.size()).normal_()/MAX_WAV_VALUE
+                input_0 = torch.from_numpy(np.ones(audio_0.size())/MAX_WAV_VALUE).float().cuda().half()
+                input_0 = torch.cuda.HalfTensor(input_0)
+                input_0 = torch.autograd.Variable(input_0)
+                # input_0 = torch.cuda.HalfTensor(audio_0.size()).normal_()/MAX_WAV_VALUE
             else:
-                # input_0 = torch.from_numpy(np.ones(audio_0.size()) / MAX_WAV_VALUE).float().cuda()
-                # input_0 = torch.autograd.Variable(input_0)
-                input_0 = torch.cuda.FloatTensor(audio_0.size()).normal_()/MAX_WAV_VALUE
+                input_0 = torch.from_numpy(np.ones(audio_0.size()) / MAX_WAV_VALUE).float().cuda()
+                input_0 = torch.autograd.Variable(input_0)
+                # input_0 = torch.cuda.FloatTensor(audio_0.size()).normal_()/MAX_WAV_VALUE
             output1 = self.WN1[k]((input_0, spect))
             log_s1 = output1[:, n_half:, :]
             t_1 = output1[:, :n_half, :]
@@ -310,31 +314,31 @@ class WaveGlow(torch.nn.Module):
         #1*12000*80*8
         spect = spect.contiguous().view(spect.size(0), spect.size(1), -1).permute(0, 2, 1)
         #1*640*12000，True
-        # y_0 = torch.from_numpy(np.ones([spect.size(0),
-        #                                   int(self.n_remaining_channels/2),
-        #                                   spect.size(2)])).cuda()/MAX_WAV_VALUE
+        y_0 = torch.from_numpy(np.ones([spect.size(0),
+                                          int(self.n_remaining_channels/2),
+                                          spect.size(2)])).cuda()/MAX_WAV_VALUE
         if spect.type() == 'torch.cuda.HalfTensor':
             audio = torch.cuda.HalfTensor(spect.size(0),
                                           self.n_remaining_channels,
                                           spect.size(2)).normal_()
-            # y_0 =y_0.half()
-            # y_0 = torch.cuda.HalfTensor(y_0)
-            # y_0 = torch.autograd.Variable(sigma * y_0)
-            y_0 = torch.cuda.HalfTensor(spect.size(0),
-                                          int(self.n_remaining_channels/2),
-                                          spect.size(2)).normal_()/MAX_WAV_VALUE
-            y_0 = sigma * y_0
+            y_0 =y_0.half()
+            y_0 = torch.cuda.HalfTensor(y_0)
+            y_0 = torch.autograd.Variable(sigma * y_0)
+            # y_0 = torch.cuda.HalfTensor(spect.size(0),
+            #                               int(self.n_remaining_channels/2),
+            #                               spect.size(2)).normal_()/MAX_WAV_VALUE
+            # y_0 = sigma * y_0
             #1*4*12000
         else:
             audio = torch.cuda.FloatTensor(spect.size(0),
                                            self.n_remaining_channels,
                                            spect.size(2)).normal_()
-            # y_0 =y_0.float()
-            # y_0 = torch.autograd.Variable(sigma * y_0)
-            y_0 = torch.cuda.FloatTensor(spect.size(0),
-                                          int(self.n_remaining_channels/2),
-                                          spect.size(2)).normal_()/MAX_WAV_VALUE
-            y_0 = sigma * y_0
+            y_0 =y_0.float()
+            y_0 = torch.autograd.Variable(sigma * y_0)
+            # y_0 = torch.cuda.FloatTensor(spect.size(0),
+            #                               int(self.n_remaining_channels/2),
+            #                               spect.size(2)).normal_()/MAX_WAV_VALUE
+            # y_0 = sigma * y_0
         #封装数据
         audio = torch.autograd.Variable(sigma*audio)
 
@@ -351,7 +355,7 @@ class WaveGlow(torch.nn.Module):
             y_1 = audio_0
             x_a = (y_1-t_1)/torch.exp(log_s1)
             
-            output2 = self.WN2[k]((y_1+x_a, spect))
+            output2 = self.WN2[k](((y_1+x_a)/2, spect))
             log_s2 = output2[:, n_half:, :]
             t_2 = output2[:, :n_half, :]
             y_2 = audio_1
@@ -404,13 +408,13 @@ class WaveGlow(torch.nn.Module):
         #     WN.res_skip_layers = remove(WN.res_skip_layers)
         for WN in waveglow.WN1:
             WN.start = torch.nn.utils.remove_weight_norm(WN.start)#？移除权重归一化
-            WN.in_layers = remove_batch_norm(WN.in_layers)
+            WN.in_layers = remove(WN.in_layers)
             WN.cond_layer = torch.nn.utils.remove_weight_norm(WN.cond_layer)
             WN.res_skip_layers = remove(WN.res_skip_layers)
 
         for WN in waveglow.WN2:
             WN.start = torch.nn.utils.remove_weight_norm(WN.start)#？移除权重归一化
-            WN.in_layers = remove_batch_norm(WN.in_layers)
+            WN.in_layers = remove(WN.in_layers)
             WN.cond_layer = torch.nn.utils.remove_weight_norm(WN.cond_layer)
             WN.res_skip_layers = remove(WN.res_skip_layers)
         return waveglow

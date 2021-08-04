@@ -50,8 +50,8 @@ with fused residual and skip connections.
 2. Make a list of the file names to use for training/testing
 
    ```command
-   ls ~/BBdata/Wave/*.wav | tail -n+10 > train_files.txt
-   ls ~/BBdata/Wave/*.wav | head -n10 > test_files.txt
+   ls ~/BBdata/Wave_22050_5min/*.wav | tail -n+10 > train_files.txt
+   ls ~/BBdata/Wave_22050_5min/*.wav | head -n10 > test_files.txt
    ```
 
 3. Train your WaveGlow networks

@@ -155,6 +155,9 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
 
     model.train()
     epoch_offset = max(0, int(iteration / len(train_loader)))
+    # for param_group in optimizer.param_groups:
+    #     param_group['lr'] = 1e-4
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=1000,gamma=0.25)
     # ================ MAIN TRAINNIG LOOP! ===================
     for epoch in range(epoch_offset, epochs):
         print("Epoch: {}".format(epoch))
@@ -181,6 +184,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
                 loss.backward()
 
             optimizer.step()
+            scheduler.step()
             if not reduced_loss < 0:
                 print("no")
             print("{}:\t{:.9f}".format(iteration, reduced_loss))
