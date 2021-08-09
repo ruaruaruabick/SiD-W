@@ -184,7 +184,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
                 loss.backward()
 
             optimizer.step()
-            scheduler.step()
+            
             if not reduced_loss < 0:
                 print("no")
             print("{}:\t{:.9f}".format(iteration, reduced_loss))
@@ -204,6 +204,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
             #     num_p += param.numel()
             # print(num_p)
         # validate
+        scheduler.step()
         if rank == 0:
             validate(model,criterion,testset,epoch,batch_size,num_gpus,rank,output_directory,logger)
             model.train()
