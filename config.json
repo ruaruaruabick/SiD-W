@@ -8,11 +8,11 @@
         "iters_per_checkpoint":4000,
         "batch_size": 8,
         "seed": 1234,
-        "checkpoint_path": "",
+        "checkpoint_path": "waveglowdlf",
         "with_tensorboard": true
     },
     "data_config": {
-        "training_files": "train_files.txt",
+        "training_files": "train_files1.txt",
         "segment_length": 16384,
         "sampling_rate": 22050,
         "filter_length": 1024,

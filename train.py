@@ -119,8 +119,8 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
     iteration = 0
     if checkpoint_path != "":
         checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
-        iteration = checkpoint_dict['iteration']
-        optimizer.load_state_dict(checkpoint_dict['optimizer'])
+        #iteration = checkpoint_dict['iteration']
+        #optimizer.load_state_dict(checkpoint_dict['optimizer'])
         model_for_loading = checkpoint_dict['model']
         model.load_state_dict(model_for_loading.state_dict())
         print("Loaded checkpoint '{}' (iteration {})".format(
@@ -156,7 +156,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
     model.train()
     epoch_offset = max(0, int(iteration / len(train_loader)))
     # for param_group in optimizer.param_groups:
-    #     param_group['lr'] = 1e-4
+    #     param_group['lr'] = 5e-5
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=1000,gamma=0.25)
     # ================ MAIN TRAINNIG LOOP! ===================
     for epoch in range(epoch_offset, epochs):
@@ -203,6 +203,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
             # for param in model.parameters():
             #     num_p += param.numel()
             # print(num_p)
+        scheduler.step()
         # validate
         scheduler.step()
         if rank == 0:
