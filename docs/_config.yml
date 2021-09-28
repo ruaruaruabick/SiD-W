@@ -16,3 +16,4 @@ gems:
 plugins: [jekyll-paginate]
 #Others
 markdown: kramdown
+theme: jekyll-theme-cayman
