@@ -5,14 +5,14 @@
         "epochs": 3000,
         "learning_rate": 4e-4,
         "sigma": 1.0,
-        "iters_per_checkpoint":4000,
-        "batch_size": 8,
+        "iters_per_checkpoint":8000,
+        "batch_size": 6,
         "seed": 1234,
-        "checkpoint_path": "checkpoints/waveglowdlf",
+        "checkpoint_path": "",
         "with_tensorboard": true
     },
     "data_config": {
-        "training_files": "train_files1.txt",
+        "training_files": "traintestset_chn/train_files1.txt",
         "segment_length": 16384,
         "sampling_rate": 22050,
         "filter_length": 1024,

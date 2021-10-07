@@ -1,0 +1,10 @@
+inferaudio/engtest_mel/LJ004-0162.wav.pt
+inferaudio/engtest_mel/LJ005-0133.wav.pt
+inferaudio/engtest_mel/LJ008-0213.wav.pt
+inferaudio/engtest_mel/LJ013-0149.wav.pt
+inferaudio/engtest_mel/LJ017-0120.wav.pt
+inferaudio/engtest_mel/LJ028-0403.wav.pt
+inferaudio/engtest_mel/LJ030-0224.wav.pt
+inferaudio/engtest_mel/LJ032-0033.wav.pt
+inferaudio/engtest_mel/LJ040-0174.wav.pt
+inferaudio/engtest_mel/LJ043-0045.wav.pt

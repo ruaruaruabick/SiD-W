@@ -24,17 +24,17 @@
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # *****************************************************************************
+import time
 import os
 from scipy.io.wavfile import write
 import torch
 from mel2samp import files_to_list, MAX_WAV_VALUE
 from denoiser import Denoiser
-
-
+from tqdm import tqdm
 def main(mel_files, waveglow_path, sigma, output_dir, sampling_rate, is_fp16,
-         denoiser_strength):
+         denoiser_strength,tnum):
     mel_files = files_to_list(mel_files)#测试集mel谱list
-    waveglow = torch.load(waveglow_path)['model']#加载模型
+    waveglow = torch.load(waveglow_path.replace('U',str(tnum)))['model']#加载模型
     waveglow = waveglow.remove_weightnorm(waveglow)#？移除权重归一化
     waveglow.cuda().eval()#cuda()拷贝进gpu #？变成测试模式，dropout和BN在训练时和测不一样
     #apex加速
@@ -46,7 +46,8 @@ def main(mel_files, waveglow_path, sigma, output_dir, sampling_rate, is_fp16,
     # denoiser_strength=0
     if denoiser_strength > 0:
         denoiser = Denoiser(waveglow).cuda()
-    for i, file_path in enumerate(mel_files):
+    st = time.time()
+    for i, file_path in enumerate(tqdm(mel_files)):
         #file_name-对应的wav
         file_name = os.path.splitext(os.path.basename(file_path))[0]
         #加载MFCC特征，80个滤波器
@@ -61,7 +62,9 @@ def main(mel_files, waveglow_path, sigma, output_dir, sampling_rate, is_fp16,
         #反向传播不会自动求导
         with torch.no_grad():
             #生成1*96000Tensor数据,x为原始音频，z为mel谱
+
             audio = waveglow.infer(mel, sigma=sigma)
+            #audio = preEmphasis(audio)
             if denoiser_strength > 0:
                 audio = denoiser(audio, denoiser_strength)
             #为了转成wav？
@@ -70,14 +73,19 @@ def main(mel_files, waveglow_path, sigma, output_dir, sampling_rate, is_fp16,
         audio = audio.squeeze()
         #在cpu中转成numpy
         audio = audio.cpu().numpy()
+        #预加重
+        # audio = preEmphasis(audio)
         #改变类型
         audio = audio.astype('int16')
         #生成数据存储位置
+        if not os.path.exists(output_dir.replace('1',str(tnum))):
+            os.makedirs(output_dir.replace('1',str(tnum)))
         audio_path = os.path.join(
-            output_dir, "{}_synthesis.wav".format(file_name))
+            output_dir.replace('1',str(tnum)), "{}".format(file_name))
         write(audio_path, sampling_rate, audio)
         #写入音频
         print(audio_path)
+    print(time.time()-st)
 
 
 if __name__ == "__main__":
@@ -95,6 +103,6 @@ if __name__ == "__main__":
                         help='Removes model bias. Start with 0.1 and adjust')
 
     args = parser.parse_args()
-
-    main(args.filelist_path, args.waveglow_path, args.sigma, args.output_dir,
-         args.sampling_rate, args.is_fp16, args.denoiser_strength)
+    for i in range(1,15):
+        main(args.filelist_path, args.waveglow_path, args.sigma, args.output_dir,
+         args.sampling_rate, args.is_fp16, args.denoiser_strength,i)

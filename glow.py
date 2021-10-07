@@ -279,7 +279,7 @@ class WaveGlow(torch.nn.Module):
             log_s1 = output1[:, n_half:, :]
             t_1 = output1[:, :n_half, :]
             y_1 =  torch.exp(log_s1)*audio_0+t_1
-            output2 = self.WN2[k](((y_1+audio_0)/2, spect))
+            output2 = self.WN2[k](((y_1+audio_0), spect))
             log_s2 = output2[:, n_half:, :]
             t_2 = output2[:, :n_half, :]
             y_2 = torch.exp(log_s2)*audio_1+t_2
@@ -360,7 +360,7 @@ class WaveGlow(torch.nn.Module):
             y_1 = audio_0
             x_a = (y_1-t_1)/torch.exp(log_s1)
             
-            output2 = self.WN2[k](((y_1+x_a)/2, spect))
+            output2 = self.WN2[k](((y_1+audio_0)/2, spect))
             log_s2 = output2[:, n_half:, :]
             t_2 = output2[:, :n_half, :]
             y_2 = audio_1
@@ -404,6 +404,7 @@ class WaveGlow(torch.nn.Module):
         #1*8*12000
         audio = audio.permute(0,2,1).contiguous().view(audio.size(0), -1).data
         #1*96000
+        
         return audio
 
     @staticmethod

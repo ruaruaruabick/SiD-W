@@ -1,0 +1,10 @@
+/home/mike/BBdata/Wave_22050/004648.wav
+/home/mike/BBdata/Wave_22050/006495.wav
+/home/mike/BBdata/Wave_22050/002400.wav
+/home/mike/BBdata/Wave_22050/008849.wav
+/home/mike/BBdata/Wave_22050/001879.wav
+/home/mike/BBdata/Wave_22050/003662.wav
+/home/mike/BBdata/Wave_22050/006902.wav
+/home/mike/BBdata/Wave_22050/008510.wav
+/home/mike/BBdata/Wave_22050/005051.wav
+/home/mike/BBdata/Wave_22050/005308.wav

@@ -32,6 +32,7 @@ import torch
 import torch.utils.data
 import sys
 from scipy.io.wavfile import read
+import numpy as np
 
 # We're using the audio processing from TacoTron2 to make sure it matches
 sys.path.insert(0, 'tacotron2')
@@ -54,6 +55,7 @@ def load_wav_to_torch(full_path):
     Loads wavdata into torch array
     """
     sampling_rate, data = read(full_path)
+    data = np.append(data[0],data[1:]-0.98*data[:-1])
     return torch.from_numpy(data).float(), sampling_rate
 
 
@@ -86,11 +88,15 @@ class Mel2Samp(torch.utils.data.Dataset):
         melspec = self.stft.mel_spectrogram(audio_norm)
         melspec = torch.squeeze(melspec, 0)
         return melspec
+    
 
     def __getitem__(self, index):
         # Read audio
         filename = self.audio_files[index]
         audio, sampling_rate = load_wav_to_torch(filename)
+        
+        #预加重
+
         if sampling_rate != self.sampling_rate:
             raise ValueError("{} SR doesn't match target {} SR".format(
                 sampling_rate, self.sampling_rate))
@@ -106,8 +112,9 @@ class Mel2Samp(torch.utils.data.Dataset):
             audio = segment
         else:
             audio = torch.nn.functional.pad(audio, (0, self.segment_length - audio.size(0)), 'constant').data
-
+        
         mel = self.get_mel(audio)
+
         audio = audio / MAX_WAV_VALUE
 
         return (mel, audio)

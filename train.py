@@ -25,6 +25,7 @@
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # *****************************************************************************
+import copy
 import argparse
 import json
 import os
@@ -50,15 +51,17 @@ def load_checkpoint(checkpoint_path, model, optimizer):
           checkpoint_path, iteration))
     return model, optimizer, iteration
 
-def save_checkpoint(model, optimizer, learning_rate, iteration, filepath):
+def save_checkpoint(model, optimizer, schedular,learning_rate, iteration, filepath):
     print("Saving model and optimizer state at iteration {} to {}".format(
           iteration, filepath))
     model_for_saving = WaveGlow(**waveglow_config).cuda()
     model_for_saving.load_state_dict(model.state_dict())
     torch.save({'model': model_for_saving,
-                'iteration': iteration,
-                'optimizer': optimizer.state_dict(),
-                'learning_rate': learning_rate}, filepath)
+                 'iteration': iteration,
+                 'optimizer': optimizer.state_dict(),
+                 'learning_rate': learning_rate,
+                 'schedular':schedular
+                }, filepath)
 def validate(model,criterion,valset,epoch,batch_size,n_gpus,rank,output_directory,logger):
     model.eval()
     with torch.no_grad():
@@ -86,7 +89,7 @@ def validate(model,criterion,valset,epoch,batch_size,n_gpus,rank,output_director
             val_loss.append(reduced_loss)
         logger.add_scalar('test_loss', np.mean(val_loss), epoch)
 
-def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
+def train(num_gpus, rank, group_name,tnum, output_directory, epochs, learning_rate,
           sigma, iters_per_checkpoint, batch_size, seed, fp16_run,
           checkpoint_path, with_tensorboard):
     #设定随机数以便复现
@@ -128,10 +131,11 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
         #model, optimizer, iteration = load_checkpoint(checkpoint_path, model,
         #                                               optimizer)
         iteration += 1  # next iteration is iteration + 1
-
+    temp_config = copy.deepcopy(data_config)
+    temp_config['training_files'] = data_config['training_files'].replace('1',str(tnum))
     trainset = Mel2Samp(**data_config)
-    testconfig = data_config
-    testconfig["training_files"] = "test_files.txt"
+    testconfig = copy.deepcopy(data_config)
+    testconfig["training_files"] = "traintestset_eng/test_files_eng.txt"
     testset = Mel2Samp(**testconfig)
     # =====START: ADDED FOR DISTRIBUTED======
     train_sampler = DistributedSampler(trainset) if num_gpus > 1 else None
@@ -157,7 +161,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
     epoch_offset = max(0, int(iteration / len(train_loader)))
     # for param_group in optimizer.param_groups:
     #     param_group['lr'] = 5e-5
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=1000,gamma=0.25)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer,step_size=200,gamma=0.25)
     # ================ MAIN TRAINNIG LOOP! ===================
     for epoch in range(epoch_offset, epochs):
         print("Epoch: {}".format(epoch))
@@ -195,7 +199,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
                 if rank == 0:
                     checkpoint_path = "{}/waveglow_{}".format(
                         output_directory, iteration)
-                    save_checkpoint(model, optimizer, learning_rate, iteration,
+                    save_checkpoint(model, optimizer, scheduler,learning_rate, iteration,
                                     checkpoint_path)
 
             iteration += 1
@@ -203,15 +207,14 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
             # for param in model.parameters():
             #     num_p += param.numel()
             # print(num_p)
-        scheduler.step()
+        #scheduler.step()
         # validate
-        scheduler.step()
         if rank == 0:
             validate(model,criterion,testset,epoch,batch_size,num_gpus,rank,output_directory,logger)
             model.train()
-    checkpoint_path = "{}/waveglow_{}".format(
-                            output_directory, iteration)
-    save_checkpoint(model, optimizer, learning_rate, iteration,
+    checkpoint_path = "{}/test{}_eng_model".format(
+                            output_directory, tnum)
+    save_checkpoint(model, optimizer, scheduler, learning_rate, iteration,
                     checkpoint_path)
 if __name__ == "__main__":
     #解析参数
@@ -248,4 +251,6 @@ if __name__ == "__main__":
     #自动使用高效算法
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = False
-    train(num_gpus, args.rank, args.group_name, **train_config)
+    for i in range(1,2):
+        tnum=i
+        train(num_gpus, args.rank, args.group_name,tnum, **train_config)
