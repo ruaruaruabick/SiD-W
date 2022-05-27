@@ -275,11 +275,11 @@ class WaveGlow(torch.nn.Module):
                 input_0 = torch.from_numpy(np.zeros(audio_0.size()) / MAX_WAV_VALUE).float().cuda()
                 input_0 = torch.autograd.Variable(input_0)
                 # input_0 = torch.cuda.FloatTensor(audio_0.size()).normal_()/MAX_WAV_VALUE
-            output1 = self.WN1[k]((input_0, spect))
+            output1 = self.WN1[k]((input_0+audio_0, spect))
             log_s1 = output1[:, n_half:, :]
             t_1 = output1[:, :n_half, :]
             y_1 =  torch.exp(log_s1)*audio_0+t_1
-            output2 = self.WN2[k](((y_1+audio_0), spect))
+            output2 = self.WN2[k](((y_1+audio_1), spect))
             log_s2 = output2[:, n_half:, :]
             t_2 = output2[:, :n_half, :]
             y_2 = torch.exp(log_s2)*audio_1+t_2
